@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.example.anupama.mvvm.Models.UserFeedModel;
+import com.example.anupama.mvvm.Network.ApiResponse;
 import com.example.anupama.mvvm.Network.ApiServices;
 import com.example.anupama.mvvm.Network.RetrofitInstance;
 import com.google.gson.JsonElement;
@@ -23,7 +24,7 @@ public class UserFeedRepository {
 
     private static UserFeedRepository instance;
     private ArrayList<UserFeedModel> dataset = new ArrayList<>();
-    private final String AUTH_TOKEN = "kbvNISE2swVMxWj29EnZhg";
+    private MutableLiveData<ApiResponse> apiResponseMutableLiveData = new MutableLiveData<>();
 
     public static UserFeedRepository getInstance() {
 
@@ -33,33 +34,39 @@ public class UserFeedRepository {
         return instance;
     }
 
-    public MutableLiveData<ArrayList<UserFeedModel>> getUserFeeds(){
+    public MutableLiveData<ArrayList<UserFeedModel>> getUserFeeds(String page, String perpage, String momenttype, String auth_token){
 
 
         final MutableLiveData<ArrayList<UserFeedModel>> data = new MutableLiveData<>();
-        data.setValue(dataset);
 
+        data.setValue(dataset);
+        apiResponseMutableLiveData.setValue(ApiResponse.loading());
         ApiServices apiServices = RetrofitInstance.getRetrofitInstance().create(ApiServices.class);
-        Call<JsonElement> call = apiServices.getMoments("1", "20", "", AUTH_TOKEN);
+        Call<JsonElement> call = apiServices.getMoments(page, perpage, momenttype, auth_token);
         call.enqueue(new Callback<JsonElement>() {
             @Override
             public void onResponse(Call<JsonElement> call, Response<JsonElement> response) {
+
+                Log.e("Rishabh","API HIT");
+
                 String d = response.body().toString() ;
                 try {
                     JSONObject jsonObject = new JSONObject(d);
                     if(jsonObject.optBoolean("status")){
                         data.setValue(parseFeedResult(jsonObject));
                     }else {
+                        apiResponseMutableLiveData.setValue(ApiResponse.error(new Throwable("Status is false")));
                     }
 
                 } catch (JSONException e) {
                     e.printStackTrace();
+                    apiResponseMutableLiveData.setValue(ApiResponse.error(new Throwable(e)));
                 }
             }
 
             @Override
             public void onFailure(Call<JsonElement> call, Throwable t) {
-
+                apiResponseMutableLiveData.setValue(ApiResponse.error(t));
             }
         });
 
@@ -115,7 +122,7 @@ public class UserFeedRepository {
                     userFeedModel.setPublisherFullname(publisherUserFullname);
 
                     dataset.add(userFeedModel);
-
+                    apiResponseMutableLiveData.setValue(ApiResponse.success(null));
                 }
             }
 
@@ -123,10 +130,15 @@ public class UserFeedRepository {
         } catch (JSONException e) {
             e.printStackTrace();
             Log.e("Rishabh", "exception: " + e.toString());
+            apiResponseMutableLiveData.setValue(ApiResponse.error(new Throwable(e)));
         }
 
         return dataset;
 
+    }
+
+    public MutableLiveData<ApiResponse> getApiResponse(){
+        return apiResponseMutableLiveData;
     }
 
 }
