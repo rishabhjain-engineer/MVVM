@@ -25,6 +25,7 @@ public class UserFeedRepository {
     private static UserFeedRepository instance;
     private ArrayList<UserFeedModel> dataset = new ArrayList<>();
     private MutableLiveData<ApiResponse> apiResponseMutableLiveData = new MutableLiveData<>();
+    private MutableLiveData<ArrayList<UserFeedModel>> data = new MutableLiveData<>();
 
     public static UserFeedRepository getInstance() {
 
@@ -34,10 +35,9 @@ public class UserFeedRepository {
         return instance;
     }
 
-    public MutableLiveData<ArrayList<UserFeedModel>> getUserFeeds(String page, String perpage, String momenttype, String auth_token){
+    public MutableLiveData<ArrayList<UserFeedModel>>
+    getUserFeeds(String page, String perpage, String momenttype, String auth_token){
 
-
-        final MutableLiveData<ArrayList<UserFeedModel>> data = new MutableLiveData<>();
 
         data.setValue(dataset);
         apiResponseMutableLiveData.setValue(ApiResponse.loading());

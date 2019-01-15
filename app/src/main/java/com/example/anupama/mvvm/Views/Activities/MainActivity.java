@@ -51,7 +51,6 @@ public class MainActivity extends AppCompatActivity  {
         mUserFeedViewModel.getApiResponse().observe(this, new Observer<ApiResponse>() {
             @Override
             public void onChanged(@Nullable ApiResponse apiResponse) {
-                Log.e("Rishabh","api response on change") ;
                 consumeResponse(apiResponse);
             }
         });
