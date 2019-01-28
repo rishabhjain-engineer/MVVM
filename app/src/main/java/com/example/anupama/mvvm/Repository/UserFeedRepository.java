@@ -1,6 +1,8 @@
 package com.example.anupama.mvvm.Repository;
 
 import android.arch.lifecycle.MutableLiveData;
+import android.arch.paging.PageKeyedDataSource;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -20,12 +22,15 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class UserFeedRepository {
+public class UserFeedRepository extends PageKeyedDataSource<Integer,UserFeedModel>{
 
     private static UserFeedRepository instance;
-    private ArrayList<UserFeedModel> dataset = new ArrayList<>();
+
     private MutableLiveData<ApiResponse> apiResponseMutableLiveData = new MutableLiveData<>();
-    private MutableLiveData<ArrayList<UserFeedModel>> data = new MutableLiveData<>();
+    public static final int PAGE_SIZE = 20;
+    private static final int FIRST_PAGE = 1;
+    private final String AUTH_TOKEN = "kbvNISE2swVMxWj29EnZhg";
+
 
     public static UserFeedRepository getInstance() {
 
@@ -35,50 +40,16 @@ public class UserFeedRepository {
         return instance;
     }
 
-    public MutableLiveData<ArrayList<UserFeedModel>>
-    getUserFeeds(String page, String perpage, String momenttype, String auth_token){
-
-
-        data.setValue(dataset);
-        apiResponseMutableLiveData.setValue(ApiResponse.loading());
-        ApiServices apiServices = RetrofitInstance.getRetrofitInstance().create(ApiServices.class);
-        Call<JsonElement> call = apiServices.getMoments(page, perpage, momenttype, auth_token);
-        call.enqueue(new Callback<JsonElement>() {
-            @Override
-            public void onResponse(Call<JsonElement> call, Response<JsonElement> response) {
-
-                Log.e("Rishabh","API HIT");
-
-                String d = response.body().toString() ;
-                try {
-                    JSONObject jsonObject = new JSONObject(d);
-                    if(jsonObject.optBoolean("status")){
-                        data.setValue(parseFeedResult(jsonObject));
-                    }else {
-                        apiResponseMutableLiveData.setValue(ApiResponse.error(new Throwable("Status is false")));
-                    }
-
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                    apiResponseMutableLiveData.setValue(ApiResponse.error(new Throwable(e)));
-                }
-            }
-
-            @Override
-            public void onFailure(Call<JsonElement> call, Throwable t) {
-                apiResponseMutableLiveData.setValue(ApiResponse.error(t));
-            }
-        });
-
-        return data ;
-    }
 
     private ArrayList<UserFeedModel> parseFeedResult(JSONObject jsonObject) {
+
+        ArrayList<UserFeedModel> dataset = new ArrayList<>();
 
         try {
             String moments = jsonObject.optString("moments");
             JSONArray jsonArray = new JSONArray(moments);
             if (jsonArray.length() > 0) {
+
                 for (int i = 0; i < jsonArray.length(); i++) {
 
                     UserFeedModel userFeedModel = new UserFeedModel();
@@ -122,23 +93,132 @@ public class UserFeedRepository {
                     userFeedModel.setPublisherFullname(publisherUserFullname);
 
                     dataset.add(userFeedModel);
-                    apiResponseMutableLiveData.setValue(ApiResponse.success(null));
+                    apiResponseMutableLiveData.postValue(ApiResponse.success(null));
                 }
+            }else {
+                Log.e("Rishabh","List ended");
             }
 
 
         } catch (JSONException e) {
             e.printStackTrace();
             Log.e("Rishabh", "exception: " + e.toString());
-            apiResponseMutableLiveData.setValue(ApiResponse.error(new Throwable(e)));
+            apiResponseMutableLiveData.postValue(ApiResponse.error(new Throwable(e)));
         }
 
+       // Log.e("Rishabh","Dataset size: "+dataset.size());
         return dataset;
 
     }
 
-    public MutableLiveData<ApiResponse> getApiResponse(){
-        return apiResponseMutableLiveData;
+
+
+    @Override
+    public void loadInitial(@NonNull LoadInitialParams<Integer> params, @NonNull final LoadInitialCallback<Integer, UserFeedModel> callback) {
+        apiResponseMutableLiveData.postValue(ApiResponse.loading());
+        ApiServices apiServices = RetrofitInstance.getRetrofitInstance().create(ApiServices.class);
+        Call<JsonElement> call = apiServices.getMoments(Integer.toString(FIRST_PAGE), Integer.toString(PAGE_SIZE), "", AUTH_TOKEN);
+        call.enqueue(new Callback<JsonElement>() {
+            @Override
+            public void onResponse(Call<JsonElement> call, Response<JsonElement> response) {
+
+
+                String d = response.body().toString() ;
+                try {
+                    JSONObject jsonObject = new JSONObject(d);
+                    if(jsonObject.optBoolean("status")){
+                        callback.onResult(parseFeedResult(jsonObject),null,FIRST_PAGE+1);
+                    }else {
+                        apiResponseMutableLiveData.postValue(ApiResponse.error(new Throwable("Status is false")));
+                    }
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    apiResponseMutableLiveData.postValue(ApiResponse.error(new Throwable(e)));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<JsonElement> call, Throwable t) {
+                apiResponseMutableLiveData.postValue(ApiResponse.error(t));
+            }
+        });
+
+
     }
 
+    @Override
+    public void loadBefore(@NonNull final LoadParams<Integer> params, @NonNull final LoadCallback<Integer, UserFeedModel> callback) {
+        apiResponseMutableLiveData.postValue(ApiResponse.loading());
+        ApiServices apiServices = RetrofitInstance.getRetrofitInstance().create(ApiServices.class);
+
+        Call<JsonElement> call = apiServices.getMoments(Integer.toString(params.key), Integer.toString(PAGE_SIZE), "", AUTH_TOKEN);
+        call.enqueue(new Callback<JsonElement>() {
+            @Override
+            public void onResponse(Call<JsonElement> call, Response<JsonElement> response) {
+
+
+                Integer adjacentKey = (params.key > 1) ? params.key - 1 : null;
+                String d = response.body().toString() ;
+                try {
+                    JSONObject jsonObject = new JSONObject(d);
+                    if(jsonObject.optBoolean("status")){
+                        callback.onResult(parseFeedResult(jsonObject),adjacentKey);
+                    }else {
+                        apiResponseMutableLiveData.postValue(ApiResponse.error(new Throwable("Status is false")));
+                    }
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    apiResponseMutableLiveData.postValue(ApiResponse.error(new Throwable(e)));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<JsonElement> call, Throwable t) {
+                apiResponseMutableLiveData.postValue(ApiResponse.error(t));
+            }
+        });
+
+
+    }
+
+    @Override
+    public void loadAfter(@NonNull final LoadParams<Integer> params, @NonNull final LoadCallback<Integer, UserFeedModel> callback) {
+        //apiResponseMutableLiveData.postValue(ApiResponse.loading());
+        ApiServices apiServices = RetrofitInstance.getRetrofitInstance().create(ApiServices.class);
+        Call<JsonElement> call = apiServices.getMoments(Integer.toString(params.key), Integer.toString(PAGE_SIZE), "", AUTH_TOKEN);
+        call.enqueue(new Callback<JsonElement>() {
+            @Override
+            public void onResponse(Call<JsonElement> call, Response<JsonElement> response) {
+
+                String d = response.body().toString() ;
+                try {
+                    JSONObject jsonObject = new JSONObject(d);
+                    if(jsonObject.optBoolean("status") && parseFeedResult(jsonObject).size()>0){
+                        Integer key = parseFeedResult(jsonObject).size()>0?params.key + 1 : null ;
+                        callback.onResult(parseFeedResult(jsonObject),key);
+                    }else {
+                        //Log.e("Rishabh","Load After: Key: "+key);
+                        apiResponseMutableLiveData.postValue(ApiResponse.error(new Throwable("Status is false")));
+                    }
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                   // apiResponseMutableLiveData.postValue(ApiResponse.error(new Throwable(e)));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<JsonElement> call, Throwable t) {
+                apiResponseMutableLiveData.postValue(ApiResponse.error(t));
+            }
+        });
+
+
+    }
+
+    public MutableLiveData<ApiResponse> getApiResponse(){
+        return apiResponseMutableLiveData ;
+    }
 }

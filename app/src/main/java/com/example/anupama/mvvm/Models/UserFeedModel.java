@@ -1,11 +1,42 @@
 package com.example.anupama.mvvm.Models;
 
-public class UserFeedModel {
+import android.os.Parcel;
+import android.os.Parcelable;
+
+public class UserFeedModel implements Parcelable {
 
     private String momentId, momentImage, momentVideo, momentDescription , momentLocation;
 
     private String publisherUsername , publisherImage, publisherId, publisherFullname ;
 
+
+    public UserFeedModel(){
+
+    }
+
+    protected UserFeedModel(Parcel in) {
+        momentId = in.readString();
+        momentImage = in.readString();
+        momentVideo = in.readString();
+        momentDescription = in.readString();
+        momentLocation = in.readString();
+        publisherUsername = in.readString();
+        publisherImage = in.readString();
+        publisherId = in.readString();
+        publisherFullname = in.readString();
+    }
+
+    public static final Creator<UserFeedModel> CREATOR = new Creator<UserFeedModel>() {
+        @Override
+        public UserFeedModel createFromParcel(Parcel in) {
+            return new UserFeedModel(in);
+        }
+
+        @Override
+        public UserFeedModel[] newArray(int size) {
+            return new UserFeedModel[size];
+        }
+    };
 
     public String getMomentId() {
         return momentId;
@@ -77,5 +108,23 @@ public class UserFeedModel {
 
     public void setPublisherFullname(String publisherFullname) {
         this.publisherFullname = publisherFullname;
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel parcel, int i) {
+        parcel.writeString(momentId);
+        parcel.writeString(momentImage);
+        parcel.writeString(momentVideo);
+        parcel.writeString(momentDescription);
+        parcel.writeString(momentLocation);
+        parcel.writeString(publisherUsername);
+        parcel.writeString(publisherImage);
+        parcel.writeString(publisherId);
+        parcel.writeString(publisherFullname);
     }
 }

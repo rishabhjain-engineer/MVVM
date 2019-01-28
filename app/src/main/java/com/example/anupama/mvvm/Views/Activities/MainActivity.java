@@ -2,6 +2,8 @@ package com.example.anupama.mvvm.Views.Activities;
 
 import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModelProviders;
+import android.arch.paging.PagedList;
+import android.content.Intent;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -16,11 +18,12 @@ import com.example.anupama.mvvm.Adapters.UserFeedAdapter;
 import com.example.anupama.mvvm.Models.UserFeedModel;
 import com.example.anupama.mvvm.Network.ApiResponse;
 import com.example.anupama.mvvm.R;
+import com.example.anupama.mvvm.Repository.UserFeedRepository;
 import com.example.anupama.mvvm.ViewModels.UserFeedViewModel;
 
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity  {
+public class MainActivity extends AppCompatActivity implements UserFeedAdapter.OnItemClickListener {
 
 
     private ProgressBar mProgressBar;
@@ -36,26 +39,31 @@ public class MainActivity extends AppCompatActivity  {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Log.e("Rishabh","ON CREATE");
-
+        initComponent();
         mUserFeedViewModel = ViewModelProviders.of(this).get(UserFeedViewModel.class);
 
-        mUserFeedViewModel.init("1","20","",AUTH_TOKEN);
-        mUserFeedViewModel.getUserFeeds().observe(this, new Observer<ArrayList<UserFeedModel>>() {
+        mUserFeedViewModel.getListLiveData().observe(this, new Observer<PagedList<UserFeedModel>>() {
             @Override
-            public void onChanged(@Nullable ArrayList<UserFeedModel> userFeedModels) {
-               mUserFeedAdapter.notifyDataSetChanged();
+            public void onChanged(@Nullable PagedList<UserFeedModel> userFeedModels) {
+                Log.e("Rishabh","List gets changed");
+                mUserFeedAdapter.submitList(userFeedModels);
             }
         });
 
-        mUserFeedViewModel.getApiResponse().observe(this, new Observer<ApiResponse>() {
+
+        mUserFeedViewModel.getApiResponseLiveData().observe(this, new Observer<UserFeedRepository>() {
             @Override
-            public void onChanged(@Nullable ApiResponse apiResponse) {
-                consumeResponse(apiResponse);
+            public void onChanged(@Nullable UserFeedRepository userFeedRepository) {
+                userFeedRepository.getApiResponse().observe(MainActivity.this, new Observer<ApiResponse>() {
+                    @Override
+                    public void onChanged(@Nullable ApiResponse apiResponse) {
+                        consumeResponse(apiResponse);
+                    }
+                });
             }
         });
 
-        initComponent();
+
 
     }
 
@@ -65,7 +73,7 @@ public class MainActivity extends AppCompatActivity  {
         mRecyclerView = findViewById(R.id.mainfeed_rv);
         mProgressBar = findViewById(R.id.mainfeed_pb);
 
-        mUserFeedAdapter = new UserFeedAdapter(this,mUserFeedViewModel.getUserFeeds().getValue());
+        mUserFeedAdapter = new UserFeedAdapter(this, MainActivity.this);
         mLayoutManager = new LinearLayoutManager(MainActivity.this);
         mRecyclerView.setLayoutManager(mLayoutManager);
         mRecyclerView.setHasFixedSize(true);
@@ -98,6 +106,7 @@ public class MainActivity extends AppCompatActivity  {
 
             case ERROR:
                 hideProgessBar();
+                Log.e("Rishabh","ERROR: "+apiResponse.error.getMessage());
                 Toast.makeText(MainActivity.this,apiResponse.error.getMessage(), Toast.LENGTH_SHORT).show();
                 break;
 
@@ -107,4 +116,10 @@ public class MainActivity extends AppCompatActivity  {
     }
 
 
+    @Override
+    public void itemClicked(UserFeedModel userFeedModel) {
+        Intent i = new Intent(this,ActivityB.class);
+        i.putExtra("UserFeed",userFeedModel);
+        startActivity(i);
+    }
 }
